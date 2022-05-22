@@ -1,30 +1,16 @@
 #include <iostream>
 #include <fstream>
 #include <Windows.h>
+#include "Order.h"
 
 #pragma warning(disable : 4996)
 
 using namespace std;
 
-char READ = 'r';
-char MODIFY = 'm';
-char ORDER_NOT_FOUND = 'n';
-char ORDER_FOUND = 'f';
-char EXIT = 'e';
-char END_OPERATION = 'd';
-char END_MODIFY = 'n';
-char filename[20];
-
 volatile int readerCount = 0;
+volatile int modifierCount = 0;
 CRITICAL_SECTION cs;
 HANDLE semaphore;
-
-struct Order {
-	int n;
-	char name[10];
-	int amount;
-	double price;
-};
 
 string GetExeFileName() {
 	char buffer[MAX_PATH];
@@ -110,35 +96,29 @@ DWORD WINAPI client(LPVOID data) {
 	}
 
 	while (true) {
-		DWORD readBytes;
-		DWORD writeBytes;
-
-		char inputCommand;
-		ReadFile(readPipe, &inputCommand, sizeof(inputCommand), &readBytes, NULL);
-
-		if (inputCommand == READ) {
+		DWORD bytesRead;
+		DWORD bytesWrite;
+		char clientWant;
+		ReadFile(readPipe, &clientWant, sizeof(clientWant), &bytesRead, NULL);
+		if (clientWant == READ) {
 			EnterCriticalSection(&cs);
 			++readerCount;
 			if (readerCount == 1) {
 				WaitForSingleObject(semaphore, INFINITE);
 			}
 			LeaveCriticalSection(&cs);
-
 			int orderNumber;
-			ReadFile(readPipe, &orderNumber, sizeof(int), &readBytes, NULL);
+			ReadFile(readPipe, &orderNumber, sizeof(int), &bytesRead, NULL);
 			Order* order = findOrder(orderNumber);
-
 			if (order != nullptr) {
-				WriteFile(writePipe, &ORDER_FOUND, sizeof(ORDER_FOUND), &writeBytes, NULL);
-				WriteFile(writePipe, order, sizeof(Order), &writeBytes, NULL);
+				WriteFile(writePipe, &ORDER_FOUND, sizeof(ORDER_FOUND), &bytesWrite, NULL);
+				WriteFile(writePipe, order, sizeof(Order), &bytesWrite, NULL);
 			}
 			else {
-				WriteFile(writePipe, &ORDER_NOT_FOUND, sizeof(ORDER_NOT_FOUND), &writeBytes, NULL);
+				WriteFile(writePipe, &ORDER_NOT_FOUND, sizeof(ORDER_NOT_FOUND), &bytesWrite, NULL);
 			}
-
 			char end;
-			ReadFile(readPipe, &end, sizeof(end), &readBytes, NULL);
-
+			ReadFile(readPipe, &end, sizeof(end), &bytesRead, NULL);
 			EnterCriticalSection(&cs);
 			--readerCount;
 			if (readerCount == 0) {
@@ -146,19 +126,17 @@ DWORD WINAPI client(LPVOID data) {
 			}
 			LeaveCriticalSection(&cs);
 		}
-		else if (inputCommand == MODIFY) {
+		else if (clientWant == MODIFY) {
 			WaitForSingleObject(semaphore, INFINITE);
-
 			Order order;
-			ReadFile(readPipe, &order, sizeof(Order), &readBytes, NULL);
+			ReadFile(readPipe, &order, sizeof(Order), &bytesRead, NULL);
 			modify(order);
-			WriteFile(writePipe, &END_MODIFY, sizeof(END_MODIFY), &writeBytes, NULL);
-
+			WriteFile(writePipe, &END_MODIFY, sizeof(END_MODIFY), &bytesWrite, NULL);
 			char end;
-			ReadFile(readPipe, &end, sizeof(end), &readBytes, NULL);
-
+			ReadFile(readPipe, &end, sizeof(end), &bytesRead, NULL);
 			ReleaseSemaphore(semaphore, 1, NULL);
-		} else {
+		}
+		else {
 			break;
 		}
 	}
