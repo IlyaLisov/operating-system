@@ -28,16 +28,14 @@ int main(int argc, char* argv[]) {
 				Order order;
 				ReadFile(readPipe, &order, sizeof(order), &bytesRead, NULL);
 				cout << "\nOrder name:\n" << order.name << "\nProduct count:\n" << order.amount << "\nProduct price:\n" << order.price << endl;
-			}
-			else {
+			} else {
 				cout << "Order not found.\n";
 			}
 			char c;
 			cout << "Press any char to finish read: ";
 			cin >> c;
 			WriteFile(writePipe, &END_OPERATION, sizeof(END_OPERATION), &bytesWrite, NULL);
-		}
-		else if (answer == 2) {
+		} else if (answer == 2) {
 			int orderNumber;
 			cout << "Enter order number:\n";
 			cin >> orderNumber;
@@ -58,8 +56,7 @@ int main(int argc, char* argv[]) {
 				cin >> order.price;
 				WriteFile(writePipe, &MODIFY, sizeof(MODIFY), &bytesWrite, NULL);
 				WriteFile(writePipe, &order, sizeof(order), &bytesWrite, NULL);
-			}
-			else {
+			} else {
 				cout << "Order not found.\n";
 			}
 			char answer;
@@ -68,8 +65,7 @@ int main(int argc, char* argv[]) {
 			cout << "Press any char to finish modify: ";
 			cin >> c;
 			WriteFile(writePipe, &END_OPERATION, sizeof(END_OPERATION), &bytesWrite, NULL);
-		}
-		else {
+		} else {
 			WriteFile(writePipe, &EXIT, sizeof(EXIT), &bytesWrite, NULL);
 			break;
 		}
